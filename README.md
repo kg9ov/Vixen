@@ -1,3 +1,6 @@
+![Pre-release Build](https://github.com/kg9ov/Vixen/workflows/Pre-release%20Build/badge.svg)
+
+
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/Vixenlights/Vixen)
 [![download](https://img.shields.io/badge/download-release-blue.svg)](http://www.vixenlights.com/downloads/vixen-3-downloads/)
 [![download](https://img.shields.io/badge/download-development-green.svg)](http://www.vixenlights.com/downloads/devbuild/)
