@@ -55,7 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - run: echo ${{ toJSON(needs.setup.outputs) }}
+      - run: |
+          echo '${{ toJSON(needs.setup.outputs) }}'
 
 
   build:
