@@ -102,12 +102,17 @@ foreach ($type in $issueMap.keys)
 	$output += "`r`n"
 }
 
-# Store the release notes as Github Actions output
-$escapedOutput = $output
-$escapedOutput = $escapedOutput.Trim() -replace '%', '%25'
-$escapedOutput = $escapedOutput.Trim() -replace "`r", '%0D'
-$escapedOutput = $escapedOutput.Trim() -replace "`n", '%0A'
-Write-Host "::set-output name=release-notes::$escapedOutput"
+# Store the release notes as Github Actions output to use in release body
+$actionsOutput = $output.Trim()
+# Transform into markdown
+$actionsOutput = $actionsOutput -replace '\A', '## '
+$actionsOutput = $actionsOutput -replace '^** ', '### '
+$actionsOutput = $actionsOutput -replace '^    * ', '* '
+# set-output doesn't like multiline strings - escape CR/LF
+$actionsOutput = $actionsOutput -replace '%', '%25'
+$actionsOutput = $actionsOutput -replace "`r", '%0D'
+$actionsOutput = $actionsOutput -replace "`n", '%0A'
+Write-Host "::set-output name=release-notes::$actionsOutput"
 
 $file = './Release Notes.txt'
 $regex = '^Release Notes - Vixen 3$'
