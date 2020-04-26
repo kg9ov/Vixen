@@ -43,6 +43,7 @@ jobs:
       shell: bash
       
     - name: Update release notes
+      id: release-notes
       run: ./Build/CreateReleaseNotes.ps1 -jiraUrl "http://bugs.vixenlights.com" -project "Vixen 3" -fixVersion "DevBuild" -buildType "Development"
       
     - name: Update versions
@@ -84,10 +85,7 @@ jobs:
       with:
         tag_name: Testbuild-${{ env.BUILD_NUMBER }}
         release_name: Test Build - ${{ env.BUILD_NUMBER }}
-        body: |
-          Changes in this Release
-          - First Change
-          - Second Change
+        body: ${{ steps.release-notes.outputs.release-notes }}
         draft: false
         prerelease: true
     
