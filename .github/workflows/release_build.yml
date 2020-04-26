@@ -1,0 +1,159 @@
+name: Release Build
+
+on:
+  push:
+    branches: 
+      - master
+    tags:
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+u[0-9]+'
+    paths-ignore:
+      - '**/.gitignore'
+      - '**/README.md'
+      - .github/**
+      - .tgitconfig
+
+jobs:
+
+  setup:
+  
+    runs-on: ubuntu-latest
+
+    outputs:
+      notes_build_type: ${{ env.VIX_NOTES_BUILD_TYPE }}
+      notes_fix_version: ${{ env.VIX_NOTES_FIX_VERSION }}
+      pre_release: ${{ env.VIX_PRE_RELEASE }}
+      release_tag: ${{ env.VIX_RELEASE_TAG }}
+      version: ${{ env.VIX_VERSION }}
+      
+    steps:
+    
+      - name: Set variables
+        run: |
+          if echo "${GITHUB_REF}" | grep -q "^refs/tags/" ;then
+            VIX_RELEASE_TAG=$(echo "${GITHUB_REF}" | sed -e 's!^refs/tags/!!')
+            set -- $(echo "${VIX_RELEASE_TAG}" | tr '.u' ' ')
+  
+            echo "::set-env name=VIX_NOTES_FIX_VERSION::DevBuild"
+            echo "::set-env name=VIX_NOTES_BUILD_TYPE::${1}.${2}.u.${3:-0}"
+            echo "::set-env name=VIX_PRE_RELEASE::false"
+            echo "::set-env name=VIX_RELEASE_TAG::${VIX_RELEASE_TAG}"
+            echo "::set-env name=VIX_VERSION::${1}.${2}.${BUILD_NUMBER}.${3:-0}"
+          else
+            echo "::set-env name=VIX_NOTES_FIX_VERSION::DevBuild"
+            echo "::set-env name=VIX_NOTES_BUILD_TYPE::Development"
+            echo "::set-env name=VIX_PRE_RELEASE::true"
+            echo "::set-env name=VIX_RELEASE_TAG::Testbuild-${BUILD_NUMBER}"
+            echo "::set-env name=VIX_VERSION::0.0.${BUILD_NUMBER}.0"
+          fi
+
+  echo_setup_outputs:
+  
+    needs:
+      - setup
+      
+    runs_on: ubuntu-latest
+    
+    steps:
+      - run: echo ${{ toJSON(needs.setup.outputs) }}
+
+
+  build:
+  
+    needs:
+      - setup
+    
+    if: needs.setup.outputs.version == 'foobar'
+
+    runs-on: windows-2019
+
+    steps:
+    
+    - uses: actions/checkout@v2
+      
+    - uses: nuget/setup-nuget@v1
+      
+    - uses: microsoft/setup-msbuild@v1.0.0
+    
+    - name: Setup custom NSIS
+      id: setup-nsis
+      uses: VixenLights/makensis-action@bld01-v2.51
+      with:
+        just-include: true
+        include-more-plugins: true
+    
+    - name: Set BUILD_NUMBER
+      uses: einaregilsson/build-number@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - run: echo BUILD_NUMBER = $BUILD_NUMBER
+      shell: bash
+      
+    - name: Update release notes
+      id: release-notes
+      run: ./Build/CreateReleaseNotes.ps1 -jiraUrl "http://bugs.vixenlights.com" -project "Vixen 3" -fixVersion "DevBuild" -buildType "Development"
+      
+    - name: Update versions
+      run: |
+        ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Vixen.System\Vixen.csproj
+        ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Application\VixenApplication\VixenApplication.csproj
+      
+    - name: NuGet Restore
+      run: nuget restore Vixen.sln
+      
+    - name: Build x86
+      run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x86
+
+    - name: Build x86 installer
+      run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=32 Installer\Installer.nsi
+      shell: cmd
+    
+    - name: Build x64
+      run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x64
+
+    - name: Build x64 installer
+      run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=64 Installer\Installer.nsi
+      shell: cmd
+    
+    - run: dir
+      shell: cmd
+      
+    - name: Set artifact names in environment
+      run: |
+        echo "::set-env name=VIXEN_32::$(echo Vixen*Setup-32bit.exe)"
+        echo "::set-env name=VIXEN_64::$(echo Vixen*Setup-64bit.exe)"
+      shell: bash
+      
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: Testbuild-${{ env.BUILD_NUMBER }}
+        release_name: Test Build - ${{ env.BUILD_NUMBER }}
+        body: |
+          ${{ steps.release-notes.outputs.release-notes }}
+        draft: false
+        prerelease: true
+    
+    - name: Upload x86 release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.VIXEN_32 }}
+        asset_name: ${{ env.VIXEN_32 }}
+        asset_content_type: application/vnd.microsoft.portable-executable
+      
+    - name: Upload x64 release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.VIXEN_64 }}
+        asset_name: ${{ env.VIXEN_64 }}
+        asset_content_type: application/vnd.microsoft.portable-executable
