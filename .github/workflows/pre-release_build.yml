@@ -85,7 +85,8 @@ jobs:
       with:
         tag_name: Testbuild-${{ env.BUILD_NUMBER }}
         release_name: Test Build - ${{ env.BUILD_NUMBER }}
-        body: ${{ steps.release-notes.outputs.release-notes }}
+        body: |
+          ${{ steps.release-notes.outputs.release-notes }}
         draft: false
         prerelease: true
     
