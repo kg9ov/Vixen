@@ -106,8 +106,8 @@ foreach ($type in $issueMap.keys)
 $actionsOutput = $output.Trim()
 # Transform into markdown
 $actionsOutput = $actionsOutput -replace '\A', '## '
-$actionsOutput = $actionsOutput -replace '^** ', '### '
-$actionsOutput = $actionsOutput -replace '^    * ', '* '
+$actionsOutput = $actionsOutput -replace '^\*\* ', '### '
+$actionsOutput = $actionsOutput -replace '^    \* ', '* '
 # set-output doesn't like multiline strings - escape CR/LF
 $actionsOutput = $actionsOutput -replace '%', '%25'
 $actionsOutput = $actionsOutput -replace "`r", '%0D'
