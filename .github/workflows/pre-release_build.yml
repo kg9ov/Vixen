@@ -50,13 +50,6 @@ jobs:
         ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Vixen.System\Vixen.csproj
         ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Application\VixenApplication\VixenApplication.csproj
       
-    - uses: actions/cache@v1
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-      
     - name: NuGet Restore
       run: nuget restore Vixen.sln
       
