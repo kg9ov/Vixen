@@ -17,9 +17,10 @@ jobs:
 
   setup:
   
-    runs-on: ubuntu-latest
+    runs-on: windows-2019
 
     outputs:
+      build_number: ${{ env.BUILD_NUMBER }}
       notes_build_type: ${{ env.VIX_NOTES_BUILD_TYPE }}
       notes_fix_version: ${{ env.VIX_NOTES_FIX_VERSION }}
       pre_release: ${{ env.VIX_PRE_RELEASE }}
@@ -28,7 +29,13 @@ jobs:
       
     steps:
     
+      - name: Set BUILD_NUMBER
+        uses: einaregilsson/build-number@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set variables
+        shell: bash
         run: |
           if echo "${GITHUB_REF}" | grep -q "^refs/tags/" ;then
             VIX_RELEASE_TAG=$(echo "${GITHUB_REF}" | sed -e 's!^refs/tags/!!')
