@@ -103,7 +103,11 @@ foreach ($type in $issueMap.keys)
 }
 
 # Store the release notes as Github Actions output
-Write-Host "::set-output name=release-notes::$output"
+$escapedOutput = [string]::Empty
+$escapedOutput = $escapedOutput.Trim() -replace '%', '%25'
+$escapedOutput = $escapedOutput.Trim() -replace "`r", '%0D'
+$escapedOutput = $escapedOutput.Trim() -replace "`n", '%0A'
+Write-Host "::set-output name=release-notes::$escapedOutput"
 
 $file = './Release Notes.txt'
 $regex = '^Release Notes - Vixen 3$'
