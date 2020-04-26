@@ -35,7 +35,7 @@ jobs:
             set -- $(echo "${VIX_RELEASE_TAG}" | tr '.u' ' ')
   
             echo "::set-env name=VIX_NOTES_FIX_VERSION::DevBuild"
-            echo "::set-env name=VIX_NOTES_BUILD_TYPE::${1}.${2}.u.${3:-0}"
+            echo "::set-env name=VIX_NOTES_BUILD_TYPE::${1}.${2}u${3:-0}"
             echo "::set-env name=VIX_PRE_RELEASE::false"
             echo "::set-env name=VIX_RELEASE_TAG::${VIX_RELEASE_TAG}"
             echo "::set-env name=VIX_VERSION::${1}.${2}.${BUILD_NUMBER}.${3:-0}"
