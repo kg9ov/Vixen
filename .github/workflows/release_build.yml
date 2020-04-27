@@ -101,66 +101,66 @@ jobs:
           include-more-plugins: true
       
       
-    - name: Update versions
-      run: |
-        ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Vixen.System\Vixen.csproj
-        ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Application\VixenApplication\VixenApplication.csproj
+      - name: Update versions
+        run: |
+          ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Vixen.System\Vixen.csproj
+          ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Application\VixenApplication\VixenApplication.csproj
+        
+      - name: NuGet Restore
+        run: nuget restore Vixen.sln
+        
+      - name: Build x86
+        run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x86
+  
+      - name: Build x86 installer
+        run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=32 Installer\Installer.nsi
+        shell: cmd
       
-    - name: NuGet Restore
-      run: nuget restore Vixen.sln
+      - name: Build x64
+        run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x64
+  
+      - name: Build x64 installer
+        run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=64 Installer\Installer.nsi
+        shell: cmd
       
-    - name: Build x86
-      run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x86
-
-    - name: Build x86 installer
-      run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=32 Installer\Installer.nsi
-      shell: cmd
-    
-    - name: Build x64
-      run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x64
-
-    - name: Build x64 installer
-      run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=64 Installer\Installer.nsi
-      shell: cmd
-    
-    - run: dir
-      shell: cmd
+      - run: dir
+        shell: cmd
+        
+      - name: Set artifact names in environment
+        run: |
+          echo "::set-env name=VIXEN_32::$(echo Vixen*Setup-32bit.exe)"
+          echo "::set-env name=VIXEN_64::$(echo Vixen*Setup-64bit.exe)"
+        shell: bash
+        
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: Testbuild-${{ env.BUILD_NUMBER }}
+          release_name: Test Build - ${{ env.BUILD_NUMBER }}
+          body: |
+            ${{ steps.release-notes.outputs.release-notes }}
+          draft: false
+          prerelease: true
       
-    - name: Set artifact names in environment
-      run: |
-        echo "::set-env name=VIXEN_32::$(echo Vixen*Setup-32bit.exe)"
-        echo "::set-env name=VIXEN_64::$(echo Vixen*Setup-64bit.exe)"
-      shell: bash
-      
-    - name: Create release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: Testbuild-${{ env.BUILD_NUMBER }}
-        release_name: Test Build - ${{ env.BUILD_NUMBER }}
-        body: |
-          ${{ steps.release-notes.outputs.release-notes }}
-        draft: false
-        prerelease: true
-    
-    - name: Upload x86 release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.VIXEN_32 }}
-        asset_name: ${{ env.VIXEN_32 }}
-        asset_content_type: application/vnd.microsoft.portable-executable
-      
-    - name: Upload x64 release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.VIXEN_64 }}
-        asset_name: ${{ env.VIXEN_64 }}
-        asset_content_type: application/vnd.microsoft.portable-executable
+      - name: Upload x86 release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.VIXEN_32 }}
+          asset_name: ${{ env.VIXEN_32 }}
+          asset_content_type: application/vnd.microsoft.portable-executable
+        
+      - name: Upload x64 release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.VIXEN_64 }}
+          asset_name: ${{ env.VIXEN_64 }}
+          asset_content_type: application/vnd.microsoft.portable-executable
