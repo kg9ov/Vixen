@@ -112,7 +112,7 @@ $actionsOutput = $actionsOutput -replace '(?m)^    \* ', '* '
 $actionsOutput = $actionsOutput -replace '%', '%25'
 $actionsOutput = $actionsOutput -replace "`r", '%0D'
 $actionsOutput = $actionsOutput -replace "`n", '%0A'
-Write-Host "::set-output name=release-notes::$actionsOutput"
+Write-Host "::set-env name=VIX_RELEASE_NOTES_MARKDOWN::$actionsOutput"
 
 $file = './Release Notes.txt'
 $regex = '^Release Notes - Vixen 3$'
