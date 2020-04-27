@@ -67,18 +67,6 @@ jobs:
           path: "Release Notes.txt"
 
 
-  echo_setup_outputs:
-  
-    needs:
-      - setup
-      
-    runs-on: ubuntu-latest
-    
-    steps:
-      - run: |
-          echo '${{ toJSON(needs.setup.outputs) }}'
-
-
   build_x86:
   
     needs:
