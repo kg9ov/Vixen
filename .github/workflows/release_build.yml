@@ -66,6 +66,7 @@ jobs:
           name: _releaseNotes
           path: "Release Notes.txt"
 
+
   echo_setup_outputs:
   
     needs:
@@ -78,18 +79,27 @@ jobs:
           echo '${{ toJSON(needs.setup.outputs) }}'
 
 
-  build:
+  build_x86:
   
     needs:
       - setup
     
-    if: needs.setup.outputs.version == 'foobar'
+    outputs:
+      setup_32: ${{ env.SETUP_32 }}
 
     runs-on: windows-2019
 
     steps:
     
       - uses: actions/checkout@v2
+      
+      - name: Download Release Notes artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: _releaseNotes
+      
+      - name: Move Release Notes into place
+        run: Copy-Item "_releaseNotes\Release Notes.txt" -Destination "Release Notes.txt" -Force
         
       - uses: nuget/setup-nuget@v1
         
@@ -101,12 +111,11 @@ jobs:
         with:
           just-include: true
           include-more-plugins: true
-      
-      
+            
       - name: Update versions
         run: |
-          ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Vixen.System\Vixen.csproj
-          ./Build/dotnet-setversion/setversion 0.0.${env:BUILD_NUMBER}.0 Application\VixenApplication\VixenApplication.csproj
+          ./Build/dotnet-setversion/setversion ${{ needs.setup.outputs.version }} Vixen.System\Vixen.csproj
+          ./Build/dotnet-setversion/setversion ${{ needs.setup.outputs.version }} Application\VixenApplication\VixenApplication.csproj
         
       - name: NuGet Restore
         run: nuget restore Vixen.sln
@@ -118,6 +127,62 @@ jobs:
         run: ${{ steps.setup-nsis.outputs.nsis-path }} /DBUILDARCH=32 Installer\Installer.nsi
         shell: cmd
       
+      - run: dir
+        shell: cmd
+        
+      - name: Set installer name in environment
+        shell: bash
+        run: |
+          echo "::set-env name=SETUP_32::$(echo Vixen*Setup-32bit.exe)"
+        
+      - name: Upload _setup32 artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: _setup32
+          path: ${{ env.SETUP_32 }}
+
+
+  build_x64:
+  
+    needs:
+      - setup
+    
+    outputs:
+      setup_64: ${{ env.SETUP_64 }}
+
+    runs-on: windows-2019
+
+    steps:
+    
+      - uses: actions/checkout@v2
+      
+      - name: Download Release Notes artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: _releaseNotes
+      
+      - name: Move Release Notes into place
+        run: Copy-Item "_releaseNotes\Release Notes.txt" -Destination "Release Notes.txt" -Force
+        
+      - uses: nuget/setup-nuget@v1
+        
+      - uses: microsoft/setup-msbuild@v1.0.0
+      
+      - name: Setup custom NSIS
+        id: setup-nsis
+        uses: VixenLights/makensis-action@bld01-v2.51
+        with:
+          just-include: true
+          include-more-plugins: true
+            
+      - name: Update versions
+        run: |
+          ./Build/dotnet-setversion/setversion ${{ needs.setup.outputs.version }} Vixen.System\Vixen.csproj
+          ./Build/dotnet-setversion/setversion ${{ needs.setup.outputs.version }} Application\VixenApplication\VixenApplication.csproj
+        
+      - name: NuGet Restore
+        run: nuget restore Vixen.sln
+        
       - name: Build x64
         run: msbuild Vixen.sln -m -t:Rebuild -p:Configuration=Release -p:Platform=x64
   
@@ -128,24 +193,52 @@ jobs:
       - run: dir
         shell: cmd
         
-      - name: Set artifact names in environment
-        run: |
-          echo "::set-env name=VIXEN_32::$(echo Vixen*Setup-32bit.exe)"
-          echo "::set-env name=VIXEN_64::$(echo Vixen*Setup-64bit.exe)"
+      - name: Set installer name in environment
         shell: bash
-        
+        run: |
+          echo "::set-env name=SETUP_64::$(echo Vixen*Setup-64bit.exe)"
+
+      - name: Upload _setup64 artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: _setup64
+          path: ${{ env.SETUP_64 }}
+
+
+
+  create_release:
+  
+    needs:
+      - setup
+      - build_x86
+      - build_x64
+    
+    runs-on: windows-2019
+
+    steps:
+
+      - name: Download _setup32 artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: _setup32
+      
+      - name: Download _setup64 artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: _setup64
+      
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: Testbuild-${{ env.BUILD_NUMBER }}
-          release_name: Test Build - ${{ env.BUILD_NUMBER }}
+          tag_name: ${{ needs.setup.outputs.release_tag }}
+          release_name: ${{ needs.setup.outputs.release_tag }}
           body: |
-            ${{ steps.release-notes.outputs.release-notes }}
+            ${{ needs.setup.outputs.release_notes_markdown }}
           draft: false
-          prerelease: true
+          prerelease: ${{ needs.setup.outputs.pre_release }}
       
       - name: Upload x86 release asset
         uses: actions/upload-release-asset@v1
@@ -153,8 +246,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.VIXEN_32 }}
-          asset_name: ${{ env.VIXEN_32 }}
+          asset_path: _setup32/${{ needs.build_x86.outputs.setup_32 }}
+          asset_name: ${{ needs.build_x86.outputs.setup_32 }}
           asset_content_type: application/vnd.microsoft.portable-executable
         
       - name: Upload x64 release asset
@@ -163,6 +256,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.VIXEN_64 }}
-          asset_name: ${{ env.VIXEN_64 }}
+          asset_path: _setup64/${{ needs.build_x64.outputs.setup_64 }}
+          asset_name: ${{ needs.build_x64.outputs.setup_64 }}
           asset_content_type: application/vnd.microsoft.portable-executable
