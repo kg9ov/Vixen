@@ -269,9 +269,12 @@ jobs:
       # SSH_USER - username to login with
       ###########################################
       - name: Upload assets to vixenlights.com
-        if: contains(secrets.SSH_TARGET, ':')
         shell: bash
         run: |
+          if [[ -z "${{ secrets.SSH_TARGET }}" ]] ;then
+            exit 0
+          fi
+          
           TARGET_EXTRA=
           if [[ "${{ needs.setup.outputs.pre_release }}" = "false" ]] ;then
             TARGET_EXTRA=/releases
